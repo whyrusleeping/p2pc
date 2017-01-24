@@ -1,0 +1,30 @@
+{
+  "author": "whyrusleeping",
+  "bugs": {
+    "url": "https://github.com/whyrusleeping/p2pc"
+  },
+  "gx": {
+    "dvcsimport": "github.com/whyrusleeping/p2pc"
+  },
+  "gxDependencies": [
+    {
+      "author": "whyrusleeping",
+      "hash": "QmdzDdLZ7nj133QvNHypyS9Y39g35bMFk5DJ2pmX7YqtKU",
+      "name": "go-libp2p",
+      "version": "4.3.5"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmbPSoTDH3JFKkSxsCQDyVMFT76KcQz7ELWEetyyg3aeDA",
+      "name": "go-smux-multiplex",
+      "version": "1.1.5"
+    }
+  ],
+  "gxVersion": "0.10.0",
+  "language": "go",
+  "license": "",
+  "name": "p2pc",
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "0.0.0"
+}
+
