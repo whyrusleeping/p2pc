@@ -9,23 +9,23 @@ import (
 	"os"
 	"strings"
 
-	tcpt "gx/ipfs/QmNiFRHdeJgN9svSGkEtmhd5sGvv3suSKZ1sRkLqoCzL76/go-tcp-transport"
-	host "gx/ipfs/QmPsRtodRuBUir32nz5v4zuSBTSszrR1d3fA6Ahb6eaejj/go-libp2p-host"
-	gologging "gx/ipfs/QmQvJiADDe7JR4m968MwXobTCCzUqQkP87aRHe29MEBGHV/go-logging"
-	inet "gx/ipfs/QmQx1dHDDYENugYgqA22BaBrRfuv1coSsuPiM7rYh1wwGH/go-libp2p-net"
-	net "gx/ipfs/QmQx1dHDDYENugYgqA22BaBrRfuv1coSsuPiM7rYh1wwGH/go-libp2p-net"
-	msmux "gx/ipfs/QmRVYfZ7tWNHPBzWiG6KWGzvT2hcGems8srihsQE29x1U5/go-smux-multistream"
-	golog "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	ma "gx/ipfs/QmUAQaWbKxGCUTuoQVvvicbQNZ9APF5pDGWyAZSe93AtKH/go-multiaddr"
-	spdy "gx/ipfs/QmWUNsat6Jb19nC5CiJCDXepTkxjdxi3eZqeoB6mrmmaGu/go-smux-spdystream"
-	testutil "gx/ipfs/QmbHpE8HYbHdwAxyiJMsPzywVyZKLLHNi5HemfVCPwo839/go-testutil"
-	mplex "gx/ipfs/QmbPSoTDH3JFKkSxsCQDyVMFT76KcQz7ELWEetyyg3aeDA/go-smux-multiplex"
-	swarm "gx/ipfs/Qmbiq2d2ZMi34A6V22kNY3b4GgPGFztmRCQZ931TJkYWp7/go-libp2p-swarm"
-	yamux "gx/ipfs/Qmbn7RYyWzBVXiUp9jZ1dA4VADHy9DtS7iZLwfhEUQvm3U/go-smux-yamux"
-	bhost "gx/ipfs/QmdzDdLZ7nj133QvNHypyS9Y39g35bMFk5DJ2pmX7YqtKU/go-libp2p/p2p/host/basic"
-	peerstore "gx/ipfs/QmeXj9VAjmYQZxpmVz7VzccbJrpmr8qkCDSjfVNsPTWTYU/go-libp2p-peerstore"
-	pstore "gx/ipfs/QmeXj9VAjmYQZxpmVz7VzccbJrpmr8qkCDSjfVNsPTWTYU/go-libp2p-peerstore"
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	golog "github.com/ipfs/go-log"
+	host "github.com/libp2p/go-libp2p-host"
+	inet "github.com/libp2p/go-libp2p-net"
+	net "github.com/libp2p/go-libp2p-net"
+	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	pstore "github.com/libp2p/go-libp2p-peerstore"
+	swarm "github.com/libp2p/go-libp2p-swarm"
+	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	tcpt "github.com/libp2p/go-tcp-transport"
+	testutil "github.com/libp2p/go-testutil"
+	ma "github.com/multiformats/go-multiaddr"
+	gologging "github.com/whyrusleeping/go-logging"
+	mplex "github.com/whyrusleeping/go-smux-multiplex"
+	msmux "github.com/whyrusleeping/go-smux-multistream"
+	spdy "github.com/whyrusleeping/go-smux-spdystream"
+	yamux "github.com/whyrusleeping/go-smux-yamux"
 )
 
 // create a 'Host' with a random peer to listen on the given address
@@ -39,15 +39,19 @@ func makeBasicHost(listen string, secio bool) (host.Host, error) {
 	var pid peer.ID
 
 	if secio {
-		ident, err := testutil.RandIdentity()
+		priv, pub, err := testutil.SeededTestKeyPair(42)
 		if err != nil {
 			return nil, err
 		}
 
-		ident.PrivateKey()
-		ps.AddPrivKey(ident.ID(), ident.PrivateKey())
-		ps.AddPubKey(ident.ID(), ident.PublicKey())
-		pid = ident.ID()
+		mypid, err := peer.IDFromPublicKey(pub)
+		if err != nil {
+			return nil, err
+		}
+		pid = mypid
+
+		ps.AddPrivKey(pid, priv)
+		ps.AddPubKey(pid, pub)
 	} else {
 		fakepid, err := testutil.RandPeerID()
 		if err != nil {
@@ -103,6 +107,7 @@ func main() {
 		log.Println("Got a new stream!")
 		defer s.Close()
 		doEcho(s)
+		fmt.Println("do echo returned")
 	})
 
 	if *target == "" {
@@ -142,7 +147,7 @@ func main() {
 	// it should be handled on host A by the handler we set above
 	s, err := ha.NewStream(context.Background(), peerid, "/echo/1.0.0")
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("opening new stream: ", err)
 	}
 
 	go func() {
@@ -160,14 +165,14 @@ func doEcho(s inet.Stream) {
 		buf := make([]byte, 1024)
 		n, err := s.Read(buf)
 		if err != nil {
-			log.Println(err)
+			log.Println("err on read: ", err)
 			return
 		}
 
 		log.Printf("read request: %q\n", buf[:n])
 		_, err = s.Write(buf[:n])
 		if err != nil {
-			log.Println(err)
+			log.Println("err on write: ", err)
 			return
 		}
 	}
